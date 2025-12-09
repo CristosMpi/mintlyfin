@@ -1,9 +1,12 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, QrCode, Users, Store, BarChart3 } from 'lucide-react';
+import { Sparkles, Zap, QrCode, Users, Store, BarChart3, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Landing = () => {
+  const { user, signOut } = useAuth();
+
   const features = [
     {
       icon: <Zap className="w-6 h-6" />,
@@ -47,8 +50,48 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background overflow-hidden">
+      {/* Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <span className="text-2xl">🪙</span>
+            <span className="font-bold text-lg">MintPop</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <>
+                <Link to="/create">
+                  <Button variant="gradient" size="sm">
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Create Event
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="sm" onClick={() => signOut()}>
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="ghost" size="sm">
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button variant="gradient" size="sm">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section */}
-      <section className="relative pt-20 pb-32 px-4">
+      <section className="relative pt-32 pb-32 px-4">
         {/* Background glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-radial from-primary/20 via-transparent to-transparent pointer-events-none" />
         
@@ -91,9 +134,9 @@ const Landing = () => {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Link to="/create">
+            <Link to={user ? "/create" : "/auth"}>
               <Button variant="gradient" size="xl">
-                Create Your Currency
+                {user ? 'Create Your Currency' : 'Get Started Free'}
                 <Sparkles className="w-5 h-5" />
               </Button>
             </Link>
@@ -103,6 +146,17 @@ const Landing = () => {
               </Button>
             </Link>
           </motion.div>
+
+          {user && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="mt-6 text-muted-foreground"
+            >
+              Welcome back! 👋
+            </motion.p>
+          )}
         </div>
 
         {/* Floating currency symbols */}
@@ -225,9 +279,9 @@ const Landing = () => {
           <p className="text-xl text-muted-foreground mb-8">
             Join thousands of organizers running cashless events
           </p>
-          <Link to="/create">
+          <Link to={user ? "/create" : "/auth"}>
             <Button variant="gradient" size="xl">
-              Get Started Free
+              {user ? 'Create Event' : 'Get Started Free'}
               <Sparkles className="w-5 h-5" />
             </Button>
           </Link>
