@@ -7,10 +7,12 @@ import { Card } from '@/components/ui/card';
 import { Link, useNavigate } from 'react-router-dom';
 import { currencySymbols } from '@/data/demo';
 import { toast } from 'sonner';
+import { createEvent } from '@/lib/eventService';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     eventName: '',
     currencyName: '',
@@ -30,11 +32,29 @@ const CreateEvent = () => {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleCreate = () => {
-    toast.success('Event created successfully!', {
-      description: `${formData.eventName} is now live with ${formData.currencyName}`,
-    });
-    navigate('/demo/dashboard');
+  const handleCreate = async () => {
+    setLoading(true);
+    try {
+      const event = await createEvent({
+        name: formData.eventName,
+        currencyName: formData.currencyName,
+        currencySymbol: formData.currencySymbol,
+        exchangeRate: parseFloat(formData.exchangeRate),
+        startingBalance: parseFloat(formData.startingBalance),
+        durationHours: parseInt(formData.duration),
+      });
+
+      toast.success('Event created successfully!', {
+        description: `${formData.eventName} is now live with ${formData.currencyName}`,
+      });
+      navigate(`/event/${event.id}/dashboard`);
+    } catch (error) {
+      toast.error('Failed to create event', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isStepValid = () => {
@@ -252,12 +272,26 @@ const CreateEvent = () => {
             <Button
               variant="gradient"
               onClick={handleCreate}
-              disabled={!isStepValid()}
+              disabled={!isStepValid() || loading}
               className="flex-1"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Launch Event
-              <Check className="w-4 h-4 ml-2" />
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <motion.span
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  >
+                    ⏳
+                  </motion.span>
+                  Creating...
+                </span>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Launch Event
+                  <Check className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           )}
         </div>

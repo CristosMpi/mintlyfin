@@ -60,6 +60,11 @@ const Landing = () => {
           <div className="flex items-center gap-3">
             {user ? (
               <>
+                <Link to="/my-events">
+                  <Button variant="ghost" size="sm">
+                    My Events
+                  </Button>
+                </Link>
                 <Link to="/create">
                   <Button variant="gradient" size="sm">
                     <Sparkles className="w-4 h-4 mr-2" />

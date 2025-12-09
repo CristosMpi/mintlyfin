@@ -8,6 +8,10 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import CreateEvent from "./pages/CreateEvent";
+import MyEvents from "./pages/MyEvents";
+import EventDashboard from "./pages/EventDashboard";
+import JoinEvent from "./pages/JoinEvent";
+import ParticipantWallet from "./pages/ParticipantWallet";
 import Dashboard from "./pages/Dashboard";
 import Wallet from "./pages/Wallet";
 import VendorMode from "./pages/VendorMode";
@@ -30,6 +34,19 @@ const App = () => (
                 <CreateEvent />
               </ProtectedRoute>
             } />
+            <Route path="/my-events" element={
+              <ProtectedRoute>
+                <MyEvents />
+              </ProtectedRoute>
+            } />
+            <Route path="/event/:eventId/dashboard" element={
+              <ProtectedRoute>
+                <EventDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/join/:eventId" element={<JoinEvent />} />
+            <Route path="/wallet/:eventId/:joinCode" element={<ParticipantWallet />} />
+            {/* Demo routes */}
             <Route path="/demo/dashboard" element={<Dashboard />} />
             <Route path="/demo/wallet" element={<Wallet />} />
             <Route path="/demo/vendor" element={<VendorMode />} />
