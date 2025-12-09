@@ -14,6 +14,160 @@ export type Database = {
   }
   public: {
     Tables: {
+      badges: {
+        Row: {
+          created_at: string
+          criteria: string | null
+          description: string | null
+          event_id: string
+          icon: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          criteria?: string | null
+          description?: string | null
+          event_id: string
+          icon?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          criteria?: string | null
+          description?: string | null
+          event_id?: string
+          icon?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "badges_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          created_at: string
+          currency_name: string
+          currency_symbol: string
+          duration_hours: number
+          exchange_rate: number
+          expires_at: string
+          id: string
+          is_active: boolean
+          name: string
+          organizer_id: string
+          starting_balance: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency_name: string
+          currency_symbol?: string
+          duration_hours?: number
+          exchange_rate?: number
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          name: string
+          organizer_id: string
+          starting_balance?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency_name?: string
+          currency_symbol?: string
+          duration_hours?: number
+          exchange_rate?: number
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          organizer_id?: string
+          starting_balance?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      participant_badges: {
+        Row: {
+          badge_id: string
+          earned_at: string
+          id: string
+          participant_id: string
+        }
+        Insert: {
+          badge_id: string
+          earned_at?: string
+          id?: string
+          participant_id: string
+        }
+        Update: {
+          badge_id?: string
+          earned_at?: string
+          id?: string
+          participant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_badges_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      participants: {
+        Row: {
+          event_id: string
+          id: string
+          join_code: string
+          joined_at: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          join_code: string
+          joined_at?: string
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          join_code?: string
+          joined_at?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -41,6 +195,154 @@ export type Database = {
         }
         Relationships: []
       }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          event_id: string
+          from_wallet_id: string | null
+          id: string
+          to_wallet_id: string | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          vendor_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          event_id: string
+          from_wallet_id?: string | null
+          id?: string
+          to_wallet_id?: string | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          vendor_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          event_id?: string
+          from_wallet_id?: string | null
+          id?: string
+          to_wallet_id?: string | null
+          type?: Database["public"]["Enums"]["transaction_type"]
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_from_wallet_id_fkey"
+            columns: ["from_wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_to_wallet_id_fkey"
+            columns: ["to_wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          name: string
+          total_earnings: number
+          updated_at: string
+          user_id: string | null
+          vendor_code: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          name: string
+          total_earnings?: number
+          updated_at?: string
+          user_id?: string | null
+          vendor_code: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          name?: string
+          total_earnings?: number
+          updated_at?: string
+          user_id?: string | null
+          vendor_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendors_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          event_id: string
+          id: string
+          participant_id: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          event_id: string
+          id?: string
+          participant_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          event_id?: string
+          id?: string
+          participant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallets_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: true
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -49,7 +351,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      transaction_type: "payment" | "transfer" | "reward" | "refund"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -176,6 +478,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      transaction_type: ["payment", "transfer", "reward", "refund"],
+    },
   },
 } as const
