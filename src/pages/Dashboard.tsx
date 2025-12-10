@@ -123,7 +123,7 @@ const Dashboard = () => {
                 <div className="flex flex-col items-center">
                   <div className="p-4 bg-foreground rounded-2xl mb-4">
                     <QRCodeSVG
-                      value={`mintpop://join/${event.id}`}
+                      value={`mintly://join/${event.id}`}
                       size={160}
                       level="H"
                       includeMargin={false}
@@ -173,8 +173,8 @@ const Dashboard = () => {
                       className="flex items-center justify-between p-3 rounded-xl bg-muted/50"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg">
-                          {['🍔', '🎮', '👕'][i]}
+                        <div className={`w-10 h-10 rounded-xl ${['bg-orange-500', 'bg-purple-500', 'bg-blue-500'][i]} flex items-center justify-center text-primary-foreground font-bold`}>
+                          {vendor.name.charAt(0)}
                         </div>
                         <span className="font-medium">{vendor.name}</span>
                       </div>

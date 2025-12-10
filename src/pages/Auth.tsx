@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mail, Lock, User, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Sparkles, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -95,8 +95,10 @@ const Auth = () => {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🪙</span>
-            <span className="font-bold text-xl">MintPop</span>
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-xl">Mintly</span>
           </div>
         </div>
 
@@ -197,12 +199,7 @@ const Auth = () => {
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <motion.span
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    >
-                      ⏳
-                    </motion.span>
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     {mode === 'login' ? 'Signing in...' : 'Creating account...'}
                   </span>
                 ) : (

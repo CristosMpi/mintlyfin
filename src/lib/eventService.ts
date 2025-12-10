@@ -315,9 +315,9 @@ export const getWalletTransactions = async (walletId: string) => {
 const createDefaultBadges = async (eventId: string) => {
   const defaultBadges = [
     { name: 'Early Bird', icon: '🐦', description: 'Joined in the first hour', criteria: 'first_hour' },
-    { name: 'Big Spender', icon: '💸', description: 'Spent over 50 coins', criteria: 'spend_50' },
-    { name: 'Supporter', icon: '❤️', description: 'Made 5+ transactions', criteria: 'transactions_5' },
-    { name: 'VIP', icon: '⭐', description: 'Top 10% spender', criteria: 'top_10_percent' },
+    { name: 'Big Spender', icon: 'BS', description: 'Spent over 50 coins', criteria: 'spend_50' },
+    { name: 'Supporter', icon: 'SP', description: 'Made 5+ transactions', criteria: 'transactions_5' },
+    { name: 'VIP', icon: 'VP', description: 'Top 10% spender', criteria: 'top_10_percent' },
   ];
 
   await supabase

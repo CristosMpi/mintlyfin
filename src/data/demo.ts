@@ -5,7 +5,7 @@ export const demoEvent: Event = {
   id: 'demo-event-001',
   name: 'Spring Festival 2025',
   currencyName: 'FestaCoin',
-  currencySymbol: '🎪',
+  currencySymbol: 'FC',
   exchangeRate: 1.25,
   duration: 48,
   startingBalance: 100,
@@ -15,10 +15,10 @@ export const demoEvent: Event = {
 };
 
 export const demoBadges: Badge[] = [
-  { id: 'b1', name: 'Early Bird', icon: '🐦', description: 'Joined in the first hour' },
-  { id: 'b2', name: 'Big Spender', icon: '💸', description: 'Spent over 50 coins' },
-  { id: 'b3', name: 'Supporter', icon: '❤️', description: 'Made 5+ transactions' },
-  { id: 'b4', name: 'VIP', icon: '⭐', description: 'Top 10% spender' },
+  { id: 'b1', name: 'Early Bird', icon: 'EB', description: 'Joined in the first hour' },
+  { id: 'b2', name: 'Big Spender', icon: 'BS', description: 'Spent over 50 coins' },
+  { id: 'b3', name: 'Supporter', icon: 'SP', description: 'Made 5+ transactions' },
+  { id: 'b4', name: 'VIP', icon: 'VP', description: 'Top 10% spender' },
 ];
 
 export const demoParticipant: Participant = {
@@ -51,4 +51,4 @@ export const demoEventStats: EventStats = {
   timeRemaining: 42 * 60 * 60 * 1000,
 };
 
-export const currencySymbols = ['🪙', '💎', '⭐', '🎪', '🎯', '🚀', '🌟', '💰', '🎫', '🏆', '🔥', '✨'];
+export const currencySymbols = ['M', 'C', 'T', 'F', 'P', 'R', 'S', 'G', 'X', 'V', 'K', 'W'];

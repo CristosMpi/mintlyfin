@@ -14,7 +14,9 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <span className="text-4xl animate-pulse">🪙</span>
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto animate-pulse">
+            <div className="w-6 h-6 rounded-md bg-primary" />
+          </div>
           <p className="text-muted-foreground mt-4">Loading...</p>
         </div>
       </div>

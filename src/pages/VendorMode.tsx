@@ -159,8 +159,8 @@ const VendorMode = () => {
                 <h2 className="text-xl font-semibold mb-6">Confirm Payment</h2>
 
                 <div className="flex items-center justify-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl">
-                    👤
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary">
+                    {customer.name.charAt(0)}
                   </div>
                   <div className="text-left">
                     <p className="font-bold">{customer.name}</p>
