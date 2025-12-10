@@ -314,7 +314,7 @@ export const getWalletTransactions = async (walletId: string) => {
 // Badges
 const createDefaultBadges = async (eventId: string) => {
   const defaultBadges = [
-    { name: 'Early Bird', icon: '🐦', description: 'Joined in the first hour', criteria: 'first_hour' },
+    { name: 'Early Bird', icon: 'EB', description: 'Joined in the first hour', criteria: 'first_hour' },
     { name: 'Big Spender', icon: 'BS', description: 'Spent over 50 coins', criteria: 'spend_50' },
     { name: 'Supporter', icon: 'SP', description: 'Made 5+ transactions', criteria: 'transactions_5' },
     { name: 'VIP', icon: 'VP', description: 'Top 10% spender', criteria: 'top_10_percent' },
@@ -343,6 +343,88 @@ export const getParticipantBadges = async (participantId: string) => {
       badge:badges(*)
     `)
     .eq('participant_id', participantId);
+
+  if (error) throw error;
+  return data;
+};
+
+// Send reward to participant
+export const sendReward = async (
+  eventId: string,
+  participantId: string,
+  amount: number,
+  description?: string
+) => {
+  // Get wallet for participant
+  const { data: wallet, error: walletError } = await supabase
+    .from('wallets')
+    .select('id, balance')
+    .eq('participant_id', participantId)
+    .eq('event_id', eventId)
+    .single();
+
+  if (walletError || !wallet) throw new Error('Wallet not found');
+
+  // Update wallet balance
+  const { error: updateError } = await supabase
+    .from('wallets')
+    .update({ balance: Number(wallet.balance) + amount })
+    .eq('id', wallet.id);
+
+  if (updateError) throw updateError;
+
+  // Record transaction
+  const { data: transaction, error: txError } = await supabase
+    .from('transactions')
+    .insert({
+      event_id: eventId,
+      to_wallet_id: wallet.id,
+      amount,
+      type: 'reward',
+      description: description || 'Reward from organizer',
+    })
+    .select()
+    .single();
+
+  if (txError) throw txError;
+  return transaction;
+};
+
+// Update event settings
+export const updateEvent = async (
+  eventId: string,
+  updates: {
+    name?: string;
+    currency_name?: string;
+    currency_symbol?: string;
+    exchange_rate?: number;
+    starting_balance?: number;
+    is_active?: boolean;
+  }
+) => {
+  const { data, error } = await supabase
+    .from('events')
+    .update(updates)
+    .eq('id', eventId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// Get event transactions for export
+export const getEventTransactions = async (eventId: string) => {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select(`
+      *,
+      from_wallet:wallets!transactions_from_wallet_id_fkey(participant:participants(name)),
+      to_wallet:wallets!transactions_to_wallet_id_fkey(participant:participants(name)),
+      vendor:vendors(name)
+    `)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data;

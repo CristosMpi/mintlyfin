@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
@@ -10,36 +10,85 @@ import {
   Download,
   Share2,
   RefreshCw,
-  Plus
+  Plus,
+  Gift,
+  FileDown,
+  Settings,
+  User,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { getEvent, getEventStats, getEventVendors, createVendor } from '@/lib/eventService';
+import { getEvent, getEventStats, getEventVendors, createVendor, getEventParticipants, sendReward, updateEvent, getEventTransactions } from '@/lib/eventService';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 const EventDashboard = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [event, setEvent] = useState<any>(null);
   const [stats, setStats] = useState({ totalParticipants: 0, totalCirculating: 0, totalVendorEarnings: 0 });
   const [vendors, setVendors] = useState<any[]>([]);
+  const [participants, setParticipants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newVendorName, setNewVendorName] = useState('');
   const [addingVendor, setAddingVendor] = useState(false);
+  
+  // Dialog states
+  const [showRewardDialog, setShowRewardDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
+  const [rewardAmount, setRewardAmount] = useState('');
+  const [rewardMessage, setRewardMessage] = useState('');
+  const [sendingReward, setSendingReward] = useState(false);
+  
+  // Settings state
+  const [settingsForm, setSettingsForm] = useState({
+    name: '',
+    currency_name: '',
+    currency_symbol: '',
+    exchange_rate: '',
+    starting_balance: '',
+    is_active: true,
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+  
+  const qrRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
     if (!eventId) return;
     try {
-      const [eventData, statsData, vendorsData] = await Promise.all([
+      const [eventData, statsData, vendorsData, participantsData] = await Promise.all([
         getEvent(eventId),
         getEventStats(eventId),
         getEventVendors(eventId),
+        getEventParticipants(eventId),
       ]);
       setEvent(eventData);
       setStats(statsData);
       setVendors(vendorsData || []);
+      setParticipants(participantsData || []);
+      
+      if (eventData) {
+        setSettingsForm({
+          name: eventData.name,
+          currency_name: eventData.currency_name,
+          currency_symbol: eventData.currency_symbol,
+          exchange_rate: String(eventData.exchange_rate),
+          starting_balance: String(eventData.starting_balance),
+          is_active: eventData.is_active,
+        });
+      }
     } catch (error) {
       toast.error('Failed to load event data');
     } finally {
@@ -63,6 +112,161 @@ const EventDashboard = () => {
       toast.error('Failed to add vendor');
     } finally {
       setAddingVendor(false);
+    }
+  };
+
+  const handleDownloadQR = () => {
+    if (!qrRef.current) return;
+    
+    const svg = qrRef.current.querySelector('svg');
+    if (!svg) return;
+    
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = img.width * 2;
+      canvas.height = img.height * 2;
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
+      
+      const link = document.createElement('a');
+      link.download = `${event?.name || 'event'}-qr-code.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('QR code downloaded!');
+    };
+    
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  const handleShareQR = async () => {
+    const joinUrl = `${window.location.origin}/join/${eventId}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Join ${event?.name}`,
+          text: `Join my event and get your ${event?.currency_name} wallet!`,
+          url: joinUrl,
+        });
+      } catch (err) {
+        // User cancelled or share failed, copy to clipboard instead
+        await navigator.clipboard.writeText(joinUrl);
+        toast.success('Link copied to clipboard!');
+      }
+    } else {
+      await navigator.clipboard.writeText(joinUrl);
+      toast.success('Link copied to clipboard!');
+    }
+  };
+
+  const handleSendReward = async () => {
+    if (!eventId || !selectedParticipant || !rewardAmount) return;
+    
+    const amount = parseFloat(rewardAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    setSendingReward(true);
+    try {
+      await sendReward(eventId, selectedParticipant.id, amount, rewardMessage || undefined);
+      toast.success(`Sent ${event?.currency_symbol} ${amount} to ${selectedParticipant.name}!`);
+      setShowRewardDialog(false);
+      setSelectedParticipant(null);
+      setRewardAmount('');
+      setRewardMessage('');
+      loadData();
+    } catch (error) {
+      toast.error('Failed to send reward');
+    } finally {
+      setSendingReward(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!eventId) return;
+    
+    try {
+      const transactions = await getEventTransactions(eventId);
+      
+      // Prepare CSV data
+      const participantsCsv = [
+        ['Name', 'Join Code', 'Balance', 'Joined At'].join(','),
+        ...participants.map(p => [
+          p.name,
+          p.join_code,
+          p.wallets?.[0]?.balance || 0,
+          new Date(p.joined_at).toLocaleString()
+        ].join(','))
+      ].join('\n');
+      
+      const vendorsCsv = [
+        ['Name', 'Vendor Code', 'Total Earnings'].join(','),
+        ...vendors.map(v => [
+          v.name,
+          v.vendor_code,
+          v.total_earnings
+        ].join(','))
+      ].join('\n');
+      
+      const transactionsCsv = [
+        ['Type', 'Amount', 'From', 'To', 'Vendor', 'Description', 'Date'].join(','),
+        ...transactions.map((t: any) => [
+          t.type,
+          t.amount,
+          t.from_wallet?.participant?.name || '-',
+          t.to_wallet?.participant?.name || '-',
+          t.vendor?.name || '-',
+          t.description || '-',
+          new Date(t.created_at).toLocaleString()
+        ].join(','))
+      ].join('\n');
+      
+      // Create a combined export
+      const fullExport = `# ${event?.name} - Event Export\n# Generated: ${new Date().toLocaleString()}\n\n## Participants\n${participantsCsv}\n\n## Vendors\n${vendorsCsv}\n\n## Transactions\n${transactionsCsv}`;
+      
+      const blob = new Blob([fullExport], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${event?.name || 'event'}-export-${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      toast.success('Data exported successfully!');
+    } catch (error) {
+      toast.error('Failed to export data');
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!eventId) return;
+    
+    setSavingSettings(true);
+    try {
+      await updateEvent(eventId, {
+        name: settingsForm.name,
+        currency_name: settingsForm.currency_name,
+        currency_symbol: settingsForm.currency_symbol,
+        exchange_rate: parseFloat(settingsForm.exchange_rate),
+        starting_balance: parseFloat(settingsForm.starting_balance),
+        is_active: settingsForm.is_active,
+      });
+      toast.success('Settings saved!');
+      setShowSettingsDialog(false);
+      loadData();
+    } catch (error) {
+      toast.error('Failed to save settings');
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -140,7 +344,7 @@ const EventDashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Link to="/">
+            <Link to="/my-events">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
@@ -159,7 +363,7 @@ const EventDashboard = () => {
                 ? 'bg-green-500/10 text-green-500' 
                 : 'bg-destructive/10 text-destructive'
             }`}>
-              ● {event.is_active ? 'Live' : 'Ended'}
+              {event.is_active ? 'Live' : 'Ended'}
             </span>
           </div>
         </div>
@@ -200,7 +404,7 @@ const EventDashboard = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="flex flex-col items-center">
-                  <div className="p-4 bg-foreground rounded-2xl mb-4">
+                  <div ref={qrRef} className="p-4 bg-foreground rounded-2xl mb-4">
                     <QRCodeSVG
                       value={`${window.location.origin}/join/${eventId}`}
                       size={160}
@@ -212,11 +416,11 @@ const EventDashboard = () => {
                     Participants scan to join and get their wallet
                   </p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleDownloadQR}>
                       <Download className="w-4 h-4 mr-2" />
                       Download
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleShareQR}>
                       <Share2 className="w-4 h-4 mr-2" />
                       Share
                     </Button>
@@ -245,7 +449,7 @@ const EventDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="space-y-3 mb-4">
+                <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
                   {vendors.length === 0 ? (
                     <p className="text-muted-foreground text-center py-4">No vendors yet</p>
                   ) : (
@@ -300,26 +504,227 @@ const EventDashboard = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Link to={`/join/${eventId}`}>
                 <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
-                  <span className="text-2xl">👤</span>
+                  <User className="w-6 h-6" />
                   <span className="text-sm">Join as User</span>
                 </Button>
               </Link>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                <span className="text-2xl">🎁</span>
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex-col gap-2"
+                onClick={() => setShowRewardDialog(true)}
+              >
+                <Gift className="w-6 h-6" />
                 <span className="text-sm">Send Rewards</span>
               </Button>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                <span className="text-2xl">📊</span>
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex-col gap-2"
+                onClick={handleExportData}
+              >
+                <FileDown className="w-6 h-6" />
                 <span className="text-sm">Export Data</span>
               </Button>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                <span className="text-2xl">⚙️</span>
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex-col gap-2"
+                onClick={() => setShowSettingsDialog(true)}
+              >
+                <Settings className="w-6 h-6" />
                 <span className="text-sm">Settings</span>
               </Button>
             </div>
           </Card>
         </motion.div>
       </div>
+
+      {/* Send Rewards Dialog */}
+      <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5" />
+              Send Rewards
+            </DialogTitle>
+            <DialogDescription>
+              Send {event?.currency_name} to a participant as a reward.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="mb-2 block">Select Participant</Label>
+              <div className="max-h-40 overflow-y-auto space-y-2 border rounded-lg p-2">
+                {participants.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-2">No participants yet</p>
+                ) : (
+                  participants.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedParticipant(p)}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
+                        selectedParticipant?.id === p.id 
+                          ? 'bg-primary/10 border border-primary' 
+                          : 'hover:bg-muted'
+                      }`}
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {event?.currency_symbol} {p.wallets?.[0]?.balance || 0}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            {selectedParticipant && (
+              <>
+                <div>
+                  <Label htmlFor="rewardAmount">Amount</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {event?.currency_symbol}
+                    </span>
+                    <Input
+                      id="rewardAmount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0.00"
+                      className="pl-10"
+                      value={rewardAmount}
+                      onChange={(e) => setRewardAmount(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="rewardMessage">Message (optional)</Label>
+                  <Input
+                    id="rewardMessage"
+                    placeholder="Great job at the raffle!"
+                    className="mt-1"
+                    value={rewardMessage}
+                    onChange={(e) => setRewardMessage(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="gradient" 
+              onClick={handleSendReward}
+              disabled={!selectedParticipant || !rewardAmount || sendingReward}
+            >
+              {sendingReward ? 'Sending...' : 'Send Reward'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Settings Dialog */}
+      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Event Settings
+            </DialogTitle>
+            <DialogDescription>
+              Update your event configuration.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="eventName">Event Name</Label>
+              <Input
+                id="eventName"
+                className="mt-1"
+                value={settingsForm.name}
+                onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="currencyName">Currency Name</Label>
+                <Input
+                  id="currencyName"
+                  className="mt-1"
+                  value={settingsForm.currency_name}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, currency_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="currencySymbol">Symbol</Label>
+                <Input
+                  id="currencySymbol"
+                  className="mt-1"
+                  value={settingsForm.currency_symbol}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, currency_symbol: e.target.value })}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="exchangeRate">Exchange Rate (€)</Label>
+                <Input
+                  id="exchangeRate"
+                  type="number"
+                  step="0.01"
+                  className="mt-1"
+                  value={settingsForm.exchange_rate}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, exchange_rate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="startingBalance">Starting Balance</Label>
+                <Input
+                  id="startingBalance"
+                  type="number"
+                  step="1"
+                  className="mt-1"
+                  value={settingsForm.starting_balance}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, starting_balance: e.target.value })}
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Event Status</Label>
+                <p className="text-sm text-muted-foreground">
+                  {settingsForm.is_active ? 'Event is live' : 'Event is paused'}
+                </p>
+              </div>
+              <Switch
+                checked={settingsForm.is_active}
+                onCheckedChange={(checked) => setSettingsForm({ ...settingsForm, is_active: checked })}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowSettingsDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="gradient" 
+              onClick={handleSaveSettings}
+              disabled={savingSettings}
+            >
+              {savingSettings ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
