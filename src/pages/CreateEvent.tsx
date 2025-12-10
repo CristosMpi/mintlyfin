@@ -16,7 +16,7 @@ const CreateEvent = () => {
   const [formData, setFormData] = useState({
     eventName: '',
     currencyName: '',
-    currencySymbol: '🪙',
+    currencySymbol: 'M',
     exchangeRate: '1.00',
     duration: '24',
     startingBalance: '50',

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Plus, Calendar, Users, TrendingUp } from 'lucide-react';
+import { Plus, Calendar, Users, TrendingUp, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getMyEvents } from '@/lib/eventService';
@@ -45,7 +45,9 @@ const MyEvents = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <span className="text-4xl animate-pulse">🪙</span>
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto animate-pulse">
+            <div className="w-6 h-6 rounded-md bg-primary" />
+          </div>
           <p className="text-muted-foreground mt-4">Loading your events...</p>
         </div>
       </div>
@@ -74,7 +76,9 @@ const MyEvents = () => {
             animate={{ opacity: 1, y: 0 }}
           >
             <Card className="p-12 text-center">
-              <span className="text-6xl mb-4 block">🎪</span>
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="w-8 h-8 text-primary" />
+              </div>
               <h2 className="text-2xl font-bold mb-2">No Events Yet</h2>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                 Create your first event currency and start running a cashless economy for your next gathering!

@@ -173,7 +173,7 @@ const Wallet = () => {
                 transition={{ delay: i * 0.1 }}
               >
                 <Card className="p-4 text-center">
-                  <span className="text-4xl mb-2 block">{badge.icon}</span>
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2 text-primary font-bold">{badge.icon}</div>
                   <h4 className="font-semibold text-sm">{badge.name}</h4>
                   <p className="text-xs text-muted-foreground">{badge.description}</p>
                 </Card>
@@ -182,7 +182,7 @@ const Wallet = () => {
             {/* Locked badges placeholder */}
             {[1, 2].map((_, i) => (
               <Card key={`locked-${i}`} className="p-4 text-center opacity-50">
-                <span className="text-4xl mb-2 block">🔒</span>
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mx-auto mb-2 text-muted-foreground font-bold">?</div>
                 <h4 className="font-semibold text-sm">???</h4>
                 <p className="text-xs text-muted-foreground">Keep participating!</p>
               </Card>

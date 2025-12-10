@@ -79,7 +79,9 @@ const EventDashboard = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <span className="text-4xl animate-pulse">🪙</span>
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto animate-pulse">
+            <div className="w-6 h-6 rounded-md bg-primary" />
+          </div>
           <p className="text-muted-foreground mt-4">Loading event...</p>
         </div>
       </div>
@@ -130,7 +132,7 @@ const EventDashboard = () => {
     },
   ];
 
-  const vendorEmojis = ['🍔', '🎮', '👕', '🎨', '🍦', '🎪', '🎁', '☕'];
+  const vendorColors = ['bg-orange-500', 'bg-purple-500', 'bg-blue-500', 'bg-pink-500', 'bg-cyan-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500'];
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">
@@ -253,8 +255,8 @@ const EventDashboard = () => {
                         className="flex items-center justify-between p-3 rounded-xl bg-muted/50"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg">
-                            {vendorEmojis[i % vendorEmojis.length]}
+                          <div className={`w-10 h-10 rounded-xl ${vendorColors[i % vendorColors.length]} flex items-center justify-center text-primary-foreground font-bold`}>
+                            {vendor.name.charAt(0)}
                           </div>
                           <span className="font-medium">{vendor.name}</span>
                         </div>

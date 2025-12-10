@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, QrCode, Users, Store, BarChart3, LogIn, UserPlus } from 'lucide-react';
+import { Sparkles, Zap, QrCode, Users, Store, BarChart3, LogIn, UserPlus, GraduationCap, Bot, Heart, Gamepad2, FerrisWheel } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,11 +41,11 @@ const Landing = () => {
   ];
 
   const useCases = [
-    { emoji: '🎓', title: 'School Festivals', desc: 'Run your campus economy' },
-    { emoji: '🤖', title: 'Robotics Events', desc: 'Custom team tokens' },
-    { emoji: '💝', title: 'Charity Fundraisers', desc: 'Track every contribution' },
-    { emoji: '🎮', title: 'Gaming Tournaments', desc: 'Reward system built-in' },
-    { emoji: '🎡', title: 'Weekend Fairs', desc: 'Go cashless instantly' },
+    { icon: <GraduationCap className="w-6 h-6" />, title: 'School Festivals', desc: 'Run your campus economy' },
+    { icon: <Bot className="w-6 h-6" />, title: 'Robotics Events', desc: 'Custom team tokens' },
+    { icon: <Heart className="w-6 h-6" />, title: 'Charity Fundraisers', desc: 'Track every contribution' },
+    { icon: <Gamepad2 className="w-6 h-6" />, title: 'Gaming Tournaments', desc: 'Reward system built-in' },
+    { icon: <FerrisWheel className="w-6 h-6" />, title: 'Weekend Fairs', desc: 'Go cashless instantly' },
   ];
 
   return (
@@ -54,8 +54,10 @@ const Landing = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl">🪙</span>
-            <span className="font-bold text-lg">MintPop</span>
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-lg">Mintly</span>
           </Link>
           <div className="flex items-center gap-3">
             {user ? (
@@ -159,34 +161,9 @@ const Landing = () => {
               transition={{ delay: 0.5 }}
               className="mt-6 text-muted-foreground"
             >
-              Welcome back! 👋
+              Welcome back!
             </motion.p>
           )}
-        </div>
-
-        {/* Floating currency symbols */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {['🪙', '💎', '⭐', '🎪'].map((emoji, i) => (
-            <motion.span
-              key={i}
-              className="absolute text-4xl opacity-20"
-              style={{
-                left: `${15 + i * 25}%`,
-                top: `${20 + (i % 2) * 40}%`,
-              }}
-              animate={{
-                y: [0, -20, 0],
-                rotate: [0, 10, -10, 0],
-              }}
-              transition={{
-                duration: 4 + i,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            >
-              {emoji}
-            </motion.span>
-          ))}
         </div>
       </section>
 
@@ -256,7 +233,9 @@ const Landing = () => {
                 whileHover={{ scale: 1.05 }}
                 className="glass-card px-6 py-4 flex items-center gap-4 cursor-default"
               >
-                <span className="text-3xl">{useCase.emoji}</span>
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  {useCase.icon}
+                </div>
                 <div>
                   <h4 className="font-semibold">{useCase.title}</h4>
                   <p className="text-sm text-muted-foreground">{useCase.desc}</p>
@@ -297,11 +276,13 @@ const Landing = () => {
       <footer className="py-8 px-4 border-t border-border">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🪙</span>
-            <span className="font-bold text-lg">MintPop</span>
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-lg">Mintly</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2025 MintPop. Create your own event currency.
+            © 2025 Mintly. Create your own event currency.
           </p>
         </div>
       </footer>
