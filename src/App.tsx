@@ -12,6 +12,7 @@ import MyEvents from "./pages/MyEvents";
 import EventDashboard from "./pages/EventDashboard";
 import JoinEvent from "./pages/JoinEvent";
 import ParticipantWallet from "./pages/ParticipantWallet";
+import ParticipantLogin from "./pages/ParticipantLogin";
 import Dashboard from "./pages/Dashboard";
 import Wallet from "./pages/Wallet";
 import VendorMode from "./pages/VendorMode";
@@ -44,6 +45,7 @@ const App = () => (
                 <EventDashboard />
               </ProtectedRoute>
             } />
+            <Route path="/join" element={<ParticipantLogin />} />
             <Route path="/join/:eventId" element={<JoinEvent />} />
             <Route path="/wallet/:eventId/:joinCode" element={<ParticipantWallet />} />
             {/* Demo routes */}

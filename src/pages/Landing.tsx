@@ -141,15 +141,16 @@ const Landing = () => {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Link to={user ? "/create" : "/auth"}>
+            <Link to="/auth">
               <Button variant="gradient" size="xl">
-                {user ? 'Create Your Currency' : 'Get Started Free'}
+                Event Host Sign In
                 <Sparkles className="w-5 h-5" />
               </Button>
             </Link>
-            <Link to="/demo/wallet">
+            <Link to="/join">
               <Button variant="outline" size="xl">
-                Try Demo Wallet
+                <LogIn className="w-5 h-5 mr-2" />
+                Participant Login
               </Button>
             </Link>
           </motion.div>

@@ -158,6 +158,20 @@ export const getEventParticipants = async (eventId: string) => {
   return data;
 };
 
+export const getParticipantByJoinCode = async (joinCode: string) => {
+  const { data, error } = await supabase
+    .from('participants')
+    .select(`
+      *,
+      wallets (id, balance)
+    `)
+    .eq('join_code', joinCode)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+};
+
 // Vendors
 export const createVendor = async (eventId: string, vendorName: string, userId?: string) => {
   const vendorCode = generateCode();
@@ -183,6 +197,38 @@ export const getEventVendors = async (eventId: string) => {
     .select('*')
     .eq('event_id', eventId)
     .order('total_earnings', { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateVendor = async (vendorId: string, updates: { name?: string }) => {
+  const { data, error } = await supabase
+    .from('vendors')
+    .update(updates)
+    .eq('id', vendorId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteVendor = async (vendorId: string) => {
+  const { error } = await supabase
+    .from('vendors')
+    .delete()
+    .eq('id', vendorId);
+
+  if (error) throw error;
+};
+
+export const getVendorByCode = async (vendorCode: string) => {
+  const { data, error } = await supabase
+    .from('vendors')
+    .select('*')
+    .eq('vendor_code', vendorCode)
+    .maybeSingle();
 
   if (error) throw error;
   return data;
