@@ -8,14 +8,26 @@ import {
   Trophy,
   ArrowUpRight,
   ArrowDownLeft,
-  Gift
+  Gift,
+  X,
+  ScanLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Link, useParams } from 'react-router-dom';
-import { getEvent } from '@/lib/eventService';
+import { getEvent, processPayment, transferFunds, getVendorByCode, getParticipantByJoinCode, getEventVendors } from '@/lib/eventService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const ParticipantWallet = () => {
   const { eventId, joinCode } = useParams<{ eventId: string; joinCode: string }>();
@@ -24,67 +36,152 @@ const ParticipantWallet = () => {
   const [wallet, setWallet] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [badges, setBadges] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'history' | 'badges'>('history');
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!eventId || !joinCode) return;
+  // Dialog states
+  const [showPayDialog, setShowPayDialog] = useState(false);
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [showReceiveDialog, setShowReceiveDialog] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [selectedVendor, setSelectedVendor] = useState<any>(null);
+  const [sendAmount, setSendAmount] = useState('');
+  const [recipientCode, setRecipientCode] = useState('');
+  const [processing, setProcessing] = useState(false);
 
-      try {
-        // Load event
-        const eventData = await getEvent(eventId);
-        setEvent(eventData);
+  const loadData = async () => {
+    if (!eventId || !joinCode) return;
 
-        // Load participant by join code
-        const { data: participantData } = await supabase
-          .from('participants')
-          .select('*')
-          .eq('join_code', joinCode)
-          .maybeSingle();
+    try {
+      // Load event
+      const eventData = await getEvent(eventId);
+      setEvent(eventData);
 
-        if (!participantData) {
-          toast.error('Participant not found');
-          return;
-        }
-        setParticipant(participantData);
+      // Load vendors
+      const vendorsData = await getEventVendors(eventId);
+      setVendors(vendorsData || []);
 
-        // Load wallet
-        const { data: walletData } = await supabase
-          .from('wallets')
-          .select('*')
-          .eq('participant_id', participantData.id)
-          .maybeSingle();
+      // Load participant by join code
+      const { data: participantData } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('join_code', joinCode)
+        .maybeSingle();
 
-        setWallet(walletData);
-
-        // Load transactions
-        if (walletData) {
-          const { data: txData } = await supabase
-            .from('transactions')
-            .select('*, vendor:vendors(name)')
-            .or(`from_wallet_id.eq.${walletData.id},to_wallet_id.eq.${walletData.id}`)
-            .order('created_at', { ascending: false });
-
-          setTransactions(txData || []);
-        }
-
-        // Load badges
-        const { data: badgeData } = await supabase
-          .from('participant_badges')
-          .select('*, badge:badges(*)')
-          .eq('participant_id', participantData.id);
-
-        setBadges(badgeData || []);
-      } catch (error) {
-        toast.error('Failed to load wallet');
-      } finally {
-        setLoading(false);
+      if (!participantData) {
+        toast.error('Participant not found');
+        return;
       }
-    };
+      setParticipant(participantData);
 
+      // Load wallet
+      const { data: walletData } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('participant_id', participantData.id)
+        .maybeSingle();
+
+      setWallet(walletData);
+
+      // Load transactions
+      if (walletData) {
+        const { data: txData } = await supabase
+          .from('transactions')
+          .select('*, vendor:vendors(name)')
+          .or(`from_wallet_id.eq.${walletData.id},to_wallet_id.eq.${walletData.id}`)
+          .order('created_at', { ascending: false });
+
+        setTransactions(txData || []);
+      }
+
+      // Load badges
+      const { data: badgeData } = await supabase
+        .from('participant_badges')
+        .select('*, badge:badges(*)')
+        .eq('participant_id', participantData.id);
+
+      setBadges(badgeData || []);
+    } catch (error) {
+      toast.error('Failed to load wallet');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, [eventId, joinCode]);
+
+  const handlePay = async () => {
+    if (!wallet || !selectedVendor || !payAmount) return;
+    
+    const amount = parseFloat(payAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    if (amount > Number(wallet.balance)) {
+      toast.error('Insufficient balance');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      await processPayment(wallet.id, selectedVendor.id, amount, `Payment to ${selectedVendor.name}`);
+      toast.success(`Paid ${event?.currency_symbol} ${amount} to ${selectedVendor.name}!`);
+      setShowPayDialog(false);
+      setPayAmount('');
+      setSelectedVendor(null);
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Payment failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!wallet || !recipientCode || !sendAmount) return;
+    
+    const amount = parseFloat(sendAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    if (amount > Number(wallet.balance)) {
+      toast.error('Insufficient balance');
+      return;
+    }
+
+    if (recipientCode.toUpperCase() === joinCode?.toUpperCase()) {
+      toast.error('Cannot send to yourself');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const recipient = await getParticipantByJoinCode(recipientCode.toUpperCase());
+      if (!recipient || !recipient.wallets?.[0]) {
+        toast.error('Recipient not found');
+        setProcessing(false);
+        return;
+      }
+
+      await transferFunds(wallet.id, recipient.wallets[0].id, amount, `Transfer to ${recipient.name}`);
+      toast.success(`Sent ${event?.currency_symbol} ${amount} to ${recipient.name}!`);
+      setShowSendDialog(false);
+      setSendAmount('');
+      setRecipientCode('');
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Transfer failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -136,7 +233,9 @@ const ParticipantWallet = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <Card className="p-8 text-center max-w-md">
-          <span className="text-5xl mb-4 block">😕</span>
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-muted-foreground" />
+          </div>
           <h1 className="text-2xl font-bold mb-2">Wallet Not Found</h1>
           <p className="text-muted-foreground mb-6">Invalid join code or event.</p>
           <Link to="/">
@@ -176,7 +275,7 @@ const ParticipantWallet = () => {
               <span className="text-5xl font-bold">{Number(wallet.balance).toFixed(2)}</span>
             </div>
             <p className="text-muted-foreground text-sm">
-              ≈ €{(Number(wallet.balance) * Number(event.exchange_rate)).toFixed(2)}
+              ~ EUR {(Number(wallet.balance) * Number(event.exchange_rate)).toFixed(2)}
             </p>
             <p className="text-sm font-medium mt-4 text-primary">
               {event.currency_name}
@@ -188,16 +287,28 @@ const ParticipantWallet = () => {
       {/* Action Buttons */}
       <div className="max-w-md mx-auto px-4 -mt-6">
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <Button variant="gradient" className="h-auto py-4 flex-col gap-2">
+          <Button 
+            variant="gradient" 
+            className="h-auto py-4 flex-col gap-2"
+            onClick={() => setShowPayDialog(true)}
+          >
             <QrCode className="w-6 h-6" />
             <span className="text-sm">Pay</span>
           </Button>
-          <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+          <Button 
+            variant="outline" 
+            className="h-auto py-4 flex-col gap-2"
+            onClick={() => setShowSendDialog(true)}
+          >
             <Send className="w-6 h-6" />
             <span className="text-sm">Send</span>
           </Button>
-          <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-            <QrCode className="w-6 h-6" />
+          <Button 
+            variant="outline" 
+            className="h-auto py-4 flex-col gap-2"
+            onClick={() => setShowReceiveDialog(true)}
+          >
+            <ScanLine className="w-6 h-6" />
             <span className="text-sm">Receive</span>
           </Button>
         </div>
@@ -278,7 +389,9 @@ const ParticipantWallet = () => {
                   transition={{ delay: i * 0.1 }}
                 >
                   <Card className="p-4 text-center">
-                    <span className="text-4xl mb-2 block">{pb.badge?.icon}</span>
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-2 text-primary font-bold">
+                      {pb.badge?.icon}
+                    </div>
                     <h4 className="font-semibold text-sm">{pb.badge?.name}</h4>
                     <p className="text-xs text-muted-foreground">{pb.badge?.description}</p>
                   </Card>
@@ -288,6 +401,185 @@ const ParticipantWallet = () => {
           </div>
         )}
       </div>
+
+      {/* Pay Dialog */}
+      <Dialog open={showPayDialog} onOpenChange={setShowPayDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5" />
+              Pay Vendor
+            </DialogTitle>
+            <DialogDescription>
+              Select a vendor and enter the amount to pay.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="mb-2 block">Select Vendor</Label>
+              <div className="max-h-40 overflow-y-auto space-y-2 border rounded-lg p-2">
+                {vendors.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-2">No vendors available</p>
+                ) : (
+                  vendors.map((v) => (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVendor(v)}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
+                        selectedVendor?.id === v.id 
+                          ? 'bg-primary/10 border border-primary' 
+                          : 'hover:bg-muted'
+                      }`}
+                    >
+                      <span className="font-medium">{v.name}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            {selectedVendor && (
+              <div>
+                <Label htmlFor="payAmount">Amount</Label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {event?.currency_symbol}
+                  </span>
+                  <Input
+                    id="payAmount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={wallet?.balance}
+                    placeholder="0.00"
+                    className="pl-10"
+                    value={payAmount}
+                    onChange={(e) => setPayAmount(e.target.value)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Available: {event?.currency_symbol} {Number(wallet?.balance).toFixed(2)}
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowPayDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="gradient" 
+              onClick={handlePay}
+              disabled={!selectedVendor || !payAmount || processing}
+            >
+              {processing ? 'Processing...' : 'Pay'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Dialog */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5" />
+              Send to Participant
+            </DialogTitle>
+            <DialogDescription>
+              Enter the recipient's join code and amount to send.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="recipientCode">Recipient Join Code</Label>
+              <Input
+                id="recipientCode"
+                placeholder="e.g. ABC123"
+                className="mt-1 uppercase"
+                value={recipientCode}
+                onChange={(e) => setRecipientCode(e.target.value.toUpperCase())}
+                maxLength={6}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="sendAmount">Amount</Label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {event?.currency_symbol}
+                </span>
+                <Input
+                  id="sendAmount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={wallet?.balance}
+                  placeholder="0.00"
+                  className="pl-10"
+                  value={sendAmount}
+                  onChange={(e) => setSendAmount(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Available: {event?.currency_symbol} {Number(wallet?.balance).toFixed(2)}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowSendDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="gradient" 
+              onClick={handleSend}
+              disabled={!recipientCode || !sendAmount || processing}
+            >
+              {processing ? 'Sending...' : 'Send'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receive Dialog */}
+      <Dialog open={showReceiveDialog} onOpenChange={setShowReceiveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ScanLine className="w-5 h-5" />
+              Receive Payment
+            </DialogTitle>
+            <DialogDescription>
+              Share your join code to receive payments from other participants.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center py-6">
+            <div className="p-4 bg-foreground rounded-2xl mb-4">
+              <QRCodeSVG
+                value={joinCode || ''}
+                size={160}
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-2">Your Join Code</p>
+              <p className="text-3xl font-bold tracking-wider">{joinCode}</p>
+            </div>
+          </div>
+          
+          <div className="flex justify-center">
+            <Button variant="outline" onClick={() => setShowReceiveDialog(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

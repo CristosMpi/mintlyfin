@@ -15,13 +15,16 @@ import {
   FileDown,
   Settings,
   User,
-  X
+  X,
+  Trash2,
+  Pencil,
+  Snowflake
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { getEvent, getEventStats, getEventVendors, createVendor, getEventParticipants, sendReward, updateEvent, getEventTransactions } from '@/lib/eventService';
+import { getEvent, getEventStats, getEventVendors, createVendor, getEventParticipants, sendReward, updateEvent, getEventTransactions, updateVendor, deleteVendor } from '@/lib/eventService';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import {
@@ -33,6 +36,16 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const EventDashboard = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -47,10 +60,15 @@ const EventDashboard = () => {
   // Dialog states
   const [showRewardDialog, setShowRewardDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showVendorSettingsDialog, setShowVendorSettingsDialog] = useState(false);
+  const [showDeleteVendorDialog, setShowDeleteVendorDialog] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
+  const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [rewardAmount, setRewardAmount] = useState('');
   const [rewardMessage, setRewardMessage] = useState('');
   const [sendingReward, setSendingReward] = useState(false);
+  const [vendorEditName, setVendorEditName] = useState('');
+  const [savingVendor, setSavingVendor] = useState(false);
   
   // Settings state
   const [settingsForm, setSettingsForm] = useState({
@@ -270,6 +288,44 @@ const EventDashboard = () => {
     }
   };
 
+  const handleVendorClick = (vendor: any) => {
+    setSelectedVendor(vendor);
+    setVendorEditName(vendor.name);
+    setShowVendorSettingsDialog(true);
+  };
+
+  const handleUpdateVendor = async () => {
+    if (!selectedVendor || !vendorEditName.trim()) return;
+    
+    setSavingVendor(true);
+    try {
+      await updateVendor(selectedVendor.id, { name: vendorEditName.trim() });
+      toast.success('Vendor updated!');
+      setShowVendorSettingsDialog(false);
+      setSelectedVendor(null);
+      loadData();
+    } catch (error) {
+      toast.error('Failed to update vendor');
+    } finally {
+      setSavingVendor(false);
+    }
+  };
+
+  const handleDeleteVendor = async () => {
+    if (!selectedVendor) return;
+    
+    try {
+      await deleteVendor(selectedVendor.id);
+      toast.success('Vendor deleted!');
+      setShowDeleteVendorDialog(false);
+      setShowVendorSettingsDialog(false);
+      setSelectedVendor(null);
+      loadData();
+    } catch (error) {
+      toast.error('Failed to delete vendor');
+    }
+  };
+
   const formatTimeRemaining = () => {
     if (!event?.expires_at) return 'N/A';
     const remaining = new Date(event.expires_at).getTime() - Date.now();
@@ -454,9 +510,10 @@ const EventDashboard = () => {
                     <p className="text-muted-foreground text-center py-4">No vendors yet</p>
                   ) : (
                     vendors.map((vendor, i) => (
-                      <div
+                      <button
                         key={vendor.id}
-                        className="flex items-center justify-between p-3 rounded-xl bg-muted/50"
+                        onClick={() => handleVendorClick(vendor)}
+                        className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-xl ${vendorColors[i % vendorColors.length]} flex items-center justify-center text-primary-foreground font-bold`}>
@@ -467,7 +524,7 @@ const EventDashboard = () => {
                         <span className="font-bold text-accent">
                           {event.currency_symbol} {Number(vendor.total_earnings).toLocaleString()}
                         </span>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>
@@ -725,6 +782,87 @@ const EventDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Vendor Settings Dialog */}
+      <Dialog open={showVendorSettingsDialog} onOpenChange={setShowVendorSettingsDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="w-5 h-5" />
+              Vendor Settings
+            </DialogTitle>
+            <DialogDescription>
+              Manage vendor settings for {selectedVendor?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="vendorName">Vendor Name</Label>
+              <Input
+                id="vendorName"
+                className="mt-1"
+                value={vendorEditName}
+                onChange={(e) => setVendorEditName(e.target.value)}
+              />
+            </div>
+            
+            <div className="p-4 rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground mb-1">Total Earnings</p>
+              <p className="text-2xl font-bold">
+                {event?.currency_symbol} {Number(selectedVendor?.total_earnings || 0).toLocaleString()}
+              </p>
+            </div>
+            
+            <div className="p-4 rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground mb-1">Vendor Code</p>
+              <p className="text-lg font-mono font-bold tracking-wider">
+                {selectedVendor?.vendor_code}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-between">
+            <Button 
+              variant="destructive" 
+              onClick={() => setShowDeleteVendorDialog(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowVendorSettingsDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="gradient" 
+                onClick={handleUpdateVendor}
+                disabled={!vendorEditName.trim() || savingVendor}
+              >
+                {savingVendor ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Vendor Confirmation */}
+      <AlertDialog open={showDeleteVendorDialog} onOpenChange={setShowDeleteVendorDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vendor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedVendor?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteVendor} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
