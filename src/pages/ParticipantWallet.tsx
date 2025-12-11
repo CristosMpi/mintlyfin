@@ -10,7 +10,8 @@ import {
   ArrowDownLeft,
   Gift,
   X,
-  ScanLine
+  ScanLine,
+  Camera
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import { getEvent, processPayment, transferFunds, getVendorByCode, getParticipan
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import {
   Dialog,
   DialogContent,
@@ -44,6 +46,8 @@ const ParticipantWallet = () => {
   const [showPayDialog, setShowPayDialog] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
+  const [showPayScanner, setShowPayScanner] = useState(false);
+  const [showSendScanner, setShowSendScanner] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [sendAmount, setSendAmount] = useState('');
@@ -109,9 +113,87 @@ const ParticipantWallet = () => {
     }
   };
 
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!wallet?.id || !eventId) return;
+
+    // Subscribe to wallet balance changes
+    const walletChannel = supabase
+      .channel('wallet-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'wallets',
+          filter: `id=eq.${wallet.id}`
+        },
+        (payload) => {
+          console.log('Wallet updated:', payload);
+          setWallet((prev: any) => ({ ...prev, ...payload.new }));
+          toast.success('Balance updated!');
+        }
+      )
+      .subscribe();
+
+    // Subscribe to new transactions
+    const transactionChannel = supabase
+      .channel('transaction-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transactions',
+          filter: `event_id=eq.${eventId}`
+        },
+        async (payload) => {
+          const newTx = payload.new as any;
+          // Only add if relevant to this wallet
+          if (newTx.from_wallet_id === wallet.id || newTx.to_wallet_id === wallet.id) {
+            // Fetch vendor info if exists
+            let txWithVendor = newTx;
+            if (newTx.vendor_id) {
+              const { data: vendor } = await supabase
+                .from('vendors')
+                .select('name')
+                .eq('id', newTx.vendor_id)
+                .single();
+              txWithVendor = { ...newTx, vendor };
+            }
+            setTransactions((prev) => [txWithVendor, ...prev]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(walletChannel);
+      supabase.removeChannel(transactionChannel);
+    };
+  }, [wallet?.id, eventId]);
+
   useEffect(() => {
     loadData();
   }, [eventId, joinCode]);
+
+  const handlePayScan = async (result: string) => {
+    setShowPayScanner(false);
+    // Try to find vendor by code
+    const vendor = vendors.find(v => v.vendor_code === result.toUpperCase());
+    if (vendor) {
+      setSelectedVendor(vendor);
+      toast.success(`Vendor: ${vendor.name}`);
+    } else {
+      toast.error('Vendor not found');
+    }
+  };
+
+  const handleSendScan = (result: string) => {
+    setShowSendScanner(false);
+    setRecipientCode(result.toUpperCase());
+    toast.success('Code scanned!');
+  };
 
   const handlePay = async () => {
     if (!wallet || !selectedVendor || !payAmount) return;
@@ -134,7 +216,6 @@ const ParticipantWallet = () => {
       setShowPayDialog(false);
       setPayAmount('');
       setSelectedVendor(null);
-      loadData();
     } catch (error: any) {
       toast.error(error.message || 'Payment failed');
     } finally {
@@ -175,7 +256,6 @@ const ParticipantWallet = () => {
       setShowSendDialog(false);
       setSendAmount('');
       setRecipientCode('');
-      loadData();
     } catch (error: any) {
       toast.error(error.message || 'Transfer failed');
     } finally {
@@ -272,7 +352,14 @@ const ParticipantWallet = () => {
             <p className="text-muted-foreground mb-2">Your Balance</p>
             <div className="flex items-center justify-center gap-3 mb-2">
               <span className="text-4xl">{event.currency_symbol}</span>
-              <span className="text-5xl font-bold">{Number(wallet.balance).toFixed(2)}</span>
+              <motion.span 
+                key={wallet.balance}
+                initial={{ scale: 1.1 }}
+                animate={{ scale: 1 }}
+                className="text-5xl font-bold"
+              >
+                {Number(wallet.balance).toFixed(2)}
+              </motion.span>
             </div>
             <p className="text-muted-foreground text-sm">
               ~ EUR {(Number(wallet.balance) * Number(event.exchange_rate)).toFixed(2)}
@@ -411,72 +498,120 @@ const ParticipantWallet = () => {
               Pay Vendor
             </DialogTitle>
             <DialogDescription>
-              Select a vendor and enter the amount to pay.
+              Scan vendor QR code or select from the list.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <div>
-              <Label className="mb-2 block">Select Vendor</Label>
-              <div className="max-h-40 overflow-y-auto space-y-2 border rounded-lg p-2">
-                {vendors.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-2">No vendors available</p>
-                ) : (
-                  vendors.map((v) => (
-                    <button
-                      key={v.id}
-                      onClick={() => setSelectedVendor(v)}
-                      className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
-                        selectedVendor?.id === v.id 
-                          ? 'bg-primary/10 border border-primary' 
-                          : 'hover:bg-muted'
-                      }`}
-                    >
-                      <span className="font-medium">{v.name}</span>
-                    </button>
-                  ))
-                )}
+            {showPayScanner ? (
+              <div className="rounded-xl overflow-hidden">
+                <Scanner
+                  onScan={(result) => {
+                    if (result?.[0]?.rawValue) {
+                      handlePayScan(result[0].rawValue);
+                    }
+                  }}
+                  onError={(error) => {
+                    console.error(error);
+                    toast.error('Camera error');
+                  }}
+                  styles={{
+                    container: { borderRadius: '12px' }
+                  }}
+                />
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-2"
+                  onClick={() => setShowPayScanner(false)}
+                >
+                  Cancel Scan
+                </Button>
               </div>
-            </div>
-            
-            {selectedVendor && (
-              <div>
-                <Label htmlFor="payAmount">Amount</Label>
-                <div className="relative mt-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    {event?.currency_symbol}
-                  </span>
-                  <Input
-                    id="payAmount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={wallet?.balance}
-                    placeholder="0.00"
-                    className="pl-10"
-                    value={payAmount}
-                    onChange={(e) => setPayAmount(e.target.value)}
-                  />
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setShowPayScanner(true)}
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Scan Vendor QR Code
+                </Button>
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">or select vendor</span>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Available: {event?.currency_symbol} {Number(wallet?.balance).toFixed(2)}
-                </p>
-              </div>
+
+                <div>
+                  <Label className="mb-2 block">Select Vendor</Label>
+                  <div className="max-h-40 overflow-y-auto space-y-2 border rounded-lg p-2">
+                    {vendors.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-2">No vendors available</p>
+                    ) : (
+                      vendors.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVendor(v)}
+                          className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
+                            selectedVendor?.id === v.id 
+                              ? 'bg-primary/10 border border-primary' 
+                              : 'hover:bg-muted'
+                          }`}
+                        >
+                          <span className="font-medium">{v.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+                
+                {selectedVendor && (
+                  <div>
+                    <Label htmlFor="payAmount">Amount</Label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        {event?.currency_symbol}
+                      </span>
+                      <Input
+                        id="payAmount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max={wallet?.balance}
+                        placeholder="0.00"
+                        className="pl-10"
+                        value={payAmount}
+                        onChange={(e) => setPayAmount(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Available: {event?.currency_symbol} {Number(wallet?.balance).toFixed(2)}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
           
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowPayDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="gradient" 
-              onClick={handlePay}
-              disabled={!selectedVendor || !payAmount || processing}
-            >
-              {processing ? 'Processing...' : 'Pay'}
-            </Button>
-          </div>
+          {!showPayScanner && (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowPayDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="gradient" 
+                onClick={handlePay}
+                disabled={!selectedVendor || !payAmount || processing}
+              >
+                {processing ? 'Processing...' : 'Pay'}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -489,59 +624,107 @@ const ParticipantWallet = () => {
               Send to Participant
             </DialogTitle>
             <DialogDescription>
-              Enter the recipient's join code and amount to send.
+              Scan their QR code or enter join code manually.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="recipientCode">Recipient Join Code</Label>
-              <Input
-                id="recipientCode"
-                placeholder="e.g. ABC123"
-                className="mt-1 uppercase"
-                value={recipientCode}
-                onChange={(e) => setRecipientCode(e.target.value.toUpperCase())}
-                maxLength={6}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="sendAmount">Amount</Label>
-              <div className="relative mt-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  {event?.currency_symbol}
-                </span>
-                <Input
-                  id="sendAmount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={wallet?.balance}
-                  placeholder="0.00"
-                  className="pl-10"
-                  value={sendAmount}
-                  onChange={(e) => setSendAmount(e.target.value)}
+            {showSendScanner ? (
+              <div className="rounded-xl overflow-hidden">
+                <Scanner
+                  onScan={(result) => {
+                    if (result?.[0]?.rawValue) {
+                      handleSendScan(result[0].rawValue);
+                    }
+                  }}
+                  onError={(error) => {
+                    console.error(error);
+                    toast.error('Camera error');
+                  }}
+                  styles={{
+                    container: { borderRadius: '12px' }
+                  }}
                 />
+                <Button 
+                  variant="outline" 
+                  className="w-full mt-2"
+                  onClick={() => setShowSendScanner(false)}
+                >
+                  Cancel Scan
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Available: {event?.currency_symbol} {Number(wallet?.balance).toFixed(2)}
-              </p>
-            </div>
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setShowSendScanner(true)}
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Scan Recipient QR Code
+                </Button>
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">or enter code</span>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="recipientCode">Recipient Join Code</Label>
+                  <Input
+                    id="recipientCode"
+                    placeholder="e.g. ABC123"
+                    className="mt-1 text-center text-lg tracking-widest uppercase"
+                    value={recipientCode}
+                    onChange={(e) => setRecipientCode(e.target.value.toUpperCase())}
+                    maxLength={6}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="sendAmount">Amount</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {event?.currency_symbol}
+                    </span>
+                    <Input
+                      id="sendAmount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={wallet?.balance}
+                      placeholder="0.00"
+                      className="pl-10"
+                      value={sendAmount}
+                      onChange={(e) => setSendAmount(e.target.value)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Available: {event?.currency_symbol} {Number(wallet?.balance).toFixed(2)}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
           
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowSendDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="gradient" 
-              onClick={handleSend}
-              disabled={!recipientCode || !sendAmount || processing}
-            >
-              {processing ? 'Sending...' : 'Send'}
-            </Button>
-          </div>
+          {!showSendScanner && (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowSendDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="gradient" 
+                onClick={handleSend}
+                disabled={!recipientCode || !sendAmount || processing}
+              >
+                {processing ? 'Sending...' : 'Send'}
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -554,7 +737,7 @@ const ParticipantWallet = () => {
               Receive Payment
             </DialogTitle>
             <DialogDescription>
-              Share your join code to receive payments from other participants.
+              Share your QR code to receive payments.
             </DialogDescription>
           </DialogHeader>
           
@@ -562,7 +745,7 @@ const ParticipantWallet = () => {
             <div className="p-4 bg-foreground rounded-2xl mb-4">
               <QRCodeSVG
                 value={joinCode || ''}
-                size={160}
+                size={180}
                 level="H"
                 includeMargin={false}
               />
