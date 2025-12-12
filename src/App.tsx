@@ -28,35 +28,35 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/create" element={
-              <ProtectedRoute>
-                <CreateEvent />
-              </ProtectedRoute>
-            } />
-            <Route path="/my-events" element={
-              <ProtectedRoute>
-                <MyEvents />
-              </ProtectedRoute>
-            } />
-            <Route path="/event/:eventId/dashboard" element={
-              <ProtectedRoute>
-                <EventDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/join" element={<ParticipantLogin />} />
-            <Route path="/join/:eventId" element={<JoinEvent />} />
-            <Route path="/wallet/:eventId/:joinCode" element={<ParticipantWallet />} />
-            {/* Demo routes */}
-            <Route path="/demo/dashboard" element={<Dashboard />} />
-            <Route path="/demo/wallet" element={<Wallet />} />
-            <Route path="/demo/vendor" element={<VendorMode />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/create" element={
+                <ProtectedRoute>
+                  <CreateEvent />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-events" element={
+                <ProtectedRoute>
+                  <MyEvents />
+                </ProtectedRoute>
+              } />
+              <Route path="/event/:eventId/dashboard" element={
+                <ProtectedRoute>
+                  <EventDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/join" element={<ParticipantLogin />} />
+              <Route path="/join/:eventId" element={<JoinEvent />} />
+              <Route path="/wallet/:eventId/:joinCode" element={<ParticipantWallet />} />
+              {/* Demo routes */}
+              <Route path="/demo/dashboard" element={<Dashboard />} />
+              <Route path="/demo/wallet" element={<Wallet />} />
+              <Route path="/demo/vendor" element={<VendorMode />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
     </ThemeProvider>
