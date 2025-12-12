@@ -348,7 +348,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      join_event_secure: {
+        Args: {
+          p_event_id: string
+          p_join_code: string
+          p_participant_name: string
+        }
+        Returns: Json
+      }
+      process_payment_secure: {
+        Args: {
+          p_amount: number
+          p_description?: string
+          p_vendor_id: string
+          p_wallet_id: string
+        }
+        Returns: string
+      }
+      send_reward_secure: {
+        Args: {
+          p_amount: number
+          p_description?: string
+          p_event_id: string
+          p_participant_id: string
+        }
+        Returns: string
+      }
+      transfer_funds_secure: {
+        Args: {
+          p_amount: number
+          p_description?: string
+          p_from_wallet_id: string
+          p_to_wallet_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       transaction_type: "payment" | "transfer" | "reward" | "refund"
