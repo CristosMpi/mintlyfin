@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, QrCode, Users, Store, BarChart3, LogIn, UserPlus, GraduationCap, Bot, Heart, Gamepad2, FerrisWheel } from 'lucide-react';
+import { Sparkles, Zap, QrCode, Users, Store, BarChart3, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import ThemeToggle from '@/components/ThemeToggle';
+import InfiniteUseCases from '@/components/InfiniteUseCases';
 
 const Landing = () => {
   const { user, signOut } = useAuth();
@@ -40,26 +42,63 @@ const Landing = () => {
     },
   ];
 
-  const useCases = [
-    { icon: <GraduationCap className="w-6 h-6" />, title: 'School Festivals', desc: 'Run your campus economy' },
-    { icon: <Bot className="w-6 h-6" />, title: 'Robotics Events', desc: 'Custom team tokens' },
-    { icon: <Heart className="w-6 h-6" />, title: 'Charity Fundraisers', desc: 'Track every contribution' },
-    { icon: <Gamepad2 className="w-6 h-6" />, title: 'Gaming Tournaments', desc: 'Reward system built-in' },
-    { icon: <FerrisWheel className="w-6 h-6" />, title: 'Weekend Fairs', desc: 'Go cashless instantly' },
-  ];
-
   return (
     <div className="min-h-screen bg-background overflow-hidden">
+      {/* Animated Background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <motion.div
+          className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary/10 blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div
+          className="absolute top-1/2 -left-40 w-96 h-96 rounded-full bg-secondary/10 blur-3xl"
+          animate={{
+            scale: [1.2, 1, 1.2],
+            opacity: [0.2, 0.4, 0.2],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div
+          className="absolute -bottom-40 right-1/3 w-72 h-72 rounded-full bg-accent/10 blur-3xl"
+          animate={{
+            scale: [1, 1.3, 1],
+            opacity: [0.2, 0.3, 0.2],
+          }}
+          transition={{
+            duration: 12,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      </div>
+
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <motion.div 
+              className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center"
+              whileHover={{ rotate: 15, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+            >
               <Sparkles className="w-5 h-5 text-primary-foreground" />
-            </div>
+            </motion.div>
             <span className="font-bold text-lg">Mintly</span>
           </Link>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {user ? (
               <>
                 <Link to="/my-events">
@@ -108,10 +147,17 @@ const Landing = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-8">
+            <motion.span 
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-8"
+              whileHover={{ scale: 1.05 }}
+              animate={{ 
+                boxShadow: ['0 0 0 0 hsl(var(--primary) / 0.2)', '0 0 0 8px hsl(var(--primary) / 0)', '0 0 0 0 hsl(var(--primary) / 0.2)']
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
               <Sparkles className="w-4 h-4" />
               Create your own event currency
-            </span>
+            </motion.span>
           </motion.div>
 
           <motion.h1
@@ -122,7 +168,16 @@ const Landing = () => {
           >
             Launch Your Own
             <br />
-            <span className="gradient-text">Digital Economy</span>
+            <motion.span 
+              className="gradient-text"
+              animate={{ 
+                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] 
+              }}
+              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+              style={{ backgroundSize: '200% 200%' }}
+            >
+              Digital Economy
+            </motion.span>
           </motion.h1>
 
           <motion.p
@@ -142,16 +197,26 @@ const Landing = () => {
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <Link to="/auth">
-              <Button variant="gradient" size="xl">
-                Event Host Sign In
-                <Sparkles className="w-5 h-5" />
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                <Button variant="gradient" size="xl" className="group">
+                  Event Host Sign In
+                  <motion.span
+                    className="ml-2"
+                    animate={{ rotate: [0, 15, -15, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Sparkles className="w-5 h-5" />
+                  </motion.span>
+                </Button>
+              </motion.div>
             </Link>
             <Link to="/join">
-              <Button variant="outline" size="xl">
-                <LogIn className="w-5 h-5 mr-2" />
-                Participant Login
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                <Button variant="outline" size="xl">
+                  <LogIn className="w-5 h-5 mr-2" />
+                  Participant Login
+                </Button>
+              </motion.div>
             </Link>
           </motion.div>
 
@@ -166,10 +231,36 @@ const Landing = () => {
             </motion.p>
           )}
         </div>
+
+        {/* Floating coins decoration */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {['💰', '🪙', '💎', '⭐', '🏆'].map((emoji, i) => (
+            <motion.span
+              key={i}
+              className="absolute text-2xl opacity-20"
+              style={{
+                left: `${15 + i * 18}%`,
+                top: `${20 + (i % 3) * 25}%`,
+              }}
+              animate={{
+                y: [-20, 20, -20],
+                rotate: [0, 10, -10, 0],
+              }}
+              transition={{
+                duration: 4 + i,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: i * 0.5,
+              }}
+            >
+              {emoji}
+            </motion.span>
+          ))}
+        </div>
       </section>
 
       {/* Features Grid */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 relative">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0 }}
@@ -193,12 +284,16 @@ const Landing = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="glass-card p-6 hover:border-primary/30 transition-colors"
+                whileHover={{ y: -5, scale: 1.02 }}
+                className="glass-card p-6 hover:border-primary/30 transition-all cursor-default group"
               >
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4">
+                <motion.div 
+                  className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4"
+                  whileHover={{ rotate: 10, scale: 1.1 }}
+                >
                   {feature.icon}
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                </motion.div>
+                <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">{feature.title}</h3>
                 <p className="text-muted-foreground">{feature.description}</p>
               </motion.div>
             ))}
@@ -206,44 +301,59 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Use Cases */}
-      <section className="py-20 px-4 bg-card/30">
+      {/* Use Cases - Infinite Scroll */}
+      <section className="py-20 px-4 bg-card/30 relative overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Perfect For Any Event
             </h2>
             <p className="text-muted-foreground text-lg">
-              From school fairs to gaming tournaments
+              From school fairs to gaming tournaments and beyond
             </p>
           </motion.div>
+        </div>
+        
+        <InfiniteUseCases />
+      </section>
 
-          <div className="flex flex-wrap justify-center gap-4">
-            {useCases.map((useCase, i) => (
-              <motion.div
+      {/* Stats Section */}
+      <section className="py-20 px-4">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-3 gap-8 text-center"
+          >
+            {[
+              { value: '2min', label: 'Setup Time' },
+              { value: '10K+', label: 'Participants' },
+              { value: '99.9%', label: 'Uptime' },
+            ].map((stat, i) => (
+              <motion.div 
                 key={i}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
                 whileHover={{ scale: 1.05 }}
-                className="glass-card px-6 py-4 flex items-center gap-4 cursor-default"
+                className="p-6"
               >
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                  {useCase.icon}
-                </div>
-                <div>
-                  <h4 className="font-semibold">{useCase.title}</h4>
-                  <p className="text-sm text-muted-foreground">{useCase.desc}</p>
-                </div>
+                <motion.p 
+                  className="text-4xl md:text-5xl font-bold gradient-text mb-2"
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1, type: "spring" }}
+                >
+                  {stat.value}
+                </motion.p>
+                <p className="text-muted-foreground">{stat.label}</p>
               </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -256,19 +366,35 @@ const Landing = () => {
           viewport={{ once: true }}
           className="max-w-2xl mx-auto text-center relative z-10"
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+          <motion.h2 
+            className="text-4xl md:text-5xl font-bold mb-6"
+            animate={{ 
+              textShadow: ['0 0 0 transparent', '0 0 30px hsl(var(--primary) / 0.3)', '0 0 0 transparent']
+            }}
+            transition={{ duration: 3, repeat: Infinity }}
+          >
             Ready to Create Your
             <br />
             <span className="gradient-text">Event Economy?</span>
-          </h2>
+          </motion.h2>
           <p className="text-xl text-muted-foreground mb-8">
             Join thousands of organizers running cashless events
           </p>
           <Link to={user ? "/create" : "/auth"}>
-            <Button variant="gradient" size="xl">
-              {user ? 'Create Event' : 'Get Started Free'}
-              <Sparkles className="w-5 h-5" />
-            </Button>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button variant="gradient" size="xl" className="relative overflow-hidden group">
+                <motion.span
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                  animate={{ x: ['-100%', '100%'] }}
+                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+                />
+                {user ? 'Create Event' : 'Get Started Free'}
+                <Sparkles className="w-5 h-5 ml-2" />
+              </Button>
+            </motion.div>
           </Link>
         </motion.div>
       </section>
@@ -277,13 +403,17 @@ const Landing = () => {
       <footer className="py-8 px-4 border-t border-border">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <motion.div 
+              className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center"
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.5 }}
+            >
               <Sparkles className="w-5 h-5 text-primary-foreground" />
-            </div>
+            </motion.div>
             <span className="font-bold text-lg">Mintly</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2025 Mintly. Create your own event currency.
+            2025 Mintly. Create your own event currency.
           </p>
         </div>
       </footer>

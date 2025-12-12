@@ -18,12 +18,12 @@ import {
   X,
   Trash2,
   Pencil,
-  Snowflake
+  Snowflake,
+  Award
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link, useParams } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import { getEvent, getEventStats, getEventVendors, createVendor, getEventParticipants, sendReward, updateEvent, getEventTransactions, updateVendor, deleteVendor } from '@/lib/eventService';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import BrandedQRCode, { BrandedQRCodeRef } from '@/components/BrandedQRCode';
+import BadgeCreator from '@/components/BadgeCreator';
+import { supabase } from '@/integrations/supabase/client';
 
 const EventDashboard = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -69,6 +72,7 @@ const EventDashboard = () => {
   const [sendingReward, setSendingReward] = useState(false);
   const [vendorEditName, setVendorEditName] = useState('');
   const [savingVendor, setSavingVendor] = useState(false);
+  const [badges, setBadges] = useState<any[]>([]);
   
   // Settings state
   const [settingsForm, setSettingsForm] = useState({
@@ -81,7 +85,17 @@ const EventDashboard = () => {
   });
   const [savingSettings, setSavingSettings] = useState(false);
   
-  const qrRef = useRef<HTMLDivElement>(null);
+  const qrRef = useRef<BrandedQRCodeRef>(null);
+
+  const loadBadges = async () => {
+    if (!eventId) return;
+    const { data } = await supabase
+      .from('badges')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false });
+    setBadges(data || []);
+  };
 
   const loadData = async () => {
     if (!eventId) return;
@@ -107,6 +121,14 @@ const EventDashboard = () => {
           is_active: eventData.is_active,
         });
       }
+      
+      // Load badges
+      const { data: badgesData } = await supabase
+        .from('badges')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false });
+      setBadges(badgesData || []);
     } catch (error) {
       toast.error('Failed to load event data');
     } finally {
@@ -135,32 +157,8 @@ const EventDashboard = () => {
 
   const handleDownloadQR = () => {
     if (!qrRef.current) return;
-    
-    const svg = qrRef.current.querySelector('svg');
-    if (!svg) return;
-    
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = () => {
-      canvas.width = img.width * 2;
-      canvas.height = img.height * 2;
-      if (ctx) {
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      }
-      
-      const link = document.createElement('a');
-      link.download = `${event?.name || 'event'}-qr-code.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      toast.success('QR code downloaded!');
-    };
-    
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    qrRef.current.downloadQR();
+    toast.success('QR code downloaded!');
   };
 
   const handleShareQR = async () => {
@@ -460,14 +458,14 @@ const EventDashboard = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="flex flex-col items-center">
-                  <div ref={qrRef} className="p-4 bg-foreground rounded-2xl mb-4">
-                    <QRCodeSVG
-                      value={`${window.location.origin}/join/${eventId}`}
-                      size={160}
-                      level="H"
-                      includeMargin={false}
-                    />
-                  </div>
+                  <BrandedQRCode
+                    ref={qrRef}
+                    value={`${window.location.origin}/join/${eventId}`}
+                    eventName={event?.name || 'Event'}
+                    currencySymbol={event?.currency_symbol || ''}
+                    currencyName={event?.currency_name || ''}
+                    size={160}
+                  />
                   <p className="text-sm text-muted-foreground mb-4 text-center">
                     Participants scan to join and get their wallet
                   </p>

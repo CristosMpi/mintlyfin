@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Plus, Calendar, Users, TrendingUp, Sparkles } from 'lucide-react';
+import { Plus, Calendar, Users, TrendingUp, Sparkles, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getMyEvents } from '@/lib/eventService';
 import { useAuth } from '@/contexts/AuthContext';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const MyEvents = () => {
   const { user } = useAuth();
@@ -58,16 +59,26 @@ const MyEvents = () => {
     <div className="min-h-screen bg-background px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">My Events</h1>
-            <p className="text-muted-foreground">Manage your event currencies</p>
+          <div className="flex items-center gap-4">
+            <Link to="/">
+              <Button variant="ghost" size="icon">
+                <Home className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold">My Events</h1>
+              <p className="text-muted-foreground">Manage your event currencies</p>
+            </div>
           </div>
-          <Link to="/create">
-            <Button variant="gradient">
-              <Plus className="w-4 h-4 mr-2" />
-              New Event
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link to="/create">
+              <Button variant="gradient">
+                <Plus className="w-4 h-4 mr-2" />
+                New Event
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {events.length === 0 ? (
