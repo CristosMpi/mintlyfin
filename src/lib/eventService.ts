@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { z } from 'zod';
 
 type Event = Database['public']['Tables']['events']['Row'];
 type EventInsert = Database['public']['Tables']['events']['Insert'];
@@ -9,9 +10,22 @@ type Vendor = Database['public']['Tables']['vendors']['Row'];
 type Transaction = Database['public']['Tables']['transactions']['Row'];
 type Badge = Database['public']['Tables']['badges']['Row'];
 
-// Generate a unique join code
+// Input validation schemas
+const nameSchema = z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or less');
+const eventNameSchema = z.string().trim().min(3, 'Event name must be at least 3 characters').max(100, 'Event name must be 100 characters or less');
+const currencyNameSchema = z.string().trim().min(2, 'Currency name must be at least 2 characters').max(30, 'Currency name must be 30 characters or less');
+const amountSchema = z.number().positive('Amount must be positive').max(1000000, 'Amount too large');
+
+// Generate a unique join code (16 chars for security)
 const generateCode = () => {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  const randomValues = new Uint8Array(16);
+  crypto.getRandomValues(randomValues);
+  for (let i = 0; i < 16; i++) {
+    result += chars[randomValues[i] % chars.length];
+  }
+  return result;
 };
 
 // Events
@@ -23,6 +37,23 @@ export const createEvent = async (eventData: {
   startingBalance: number;
   durationHours: number;
 }) => {
+  // Validate inputs
+  const nameResult = eventNameSchema.safeParse(eventData.name);
+  if (!nameResult.success) throw new Error(nameResult.error.issues[0].message);
+  
+  const currencyResult = currencyNameSchema.safeParse(eventData.currencyName);
+  if (!currencyResult.success) throw new Error(currencyResult.error.issues[0].message);
+  
+  if (eventData.exchangeRate <= 0 || eventData.exchangeRate > 10000) {
+    throw new Error('Exchange rate must be between 0 and 10000');
+  }
+  if (eventData.startingBalance < 0 || eventData.startingBalance > 1000000) {
+    throw new Error('Starting balance must be between 0 and 1000000');
+  }
+  if (eventData.durationHours < 1 || eventData.durationHours > 168) {
+    throw new Error('Duration must be between 1 and 168 hours');
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -33,9 +64,9 @@ export const createEvent = async (eventData: {
     .from('events')
     .insert({
       organizer_id: user.id,
-      name: eventData.name,
-      currency_name: eventData.currencyName,
-      currency_symbol: eventData.currencySymbol,
+      name: nameResult.data,
+      currency_name: currencyResult.data,
+      currency_symbol: eventData.currencySymbol.substring(0, 5),
       exchange_rate: eventData.exchangeRate,
       starting_balance: eventData.startingBalance,
       duration_hours: eventData.durationHours,
@@ -104,44 +135,38 @@ export const getEventStats = async (eventId: string) => {
   };
 };
 
-// Participants
+// Type for secure RPC response
+interface JoinEventResponse {
+  participant_id: string;
+  wallet_id: string;
+  join_code: string;
+  balance: number;
+}
+
+// Participants - Uses secure RPC function
 export const joinEvent = async (eventId: string, participantName: string, userId?: string) => {
+  // Validate input
+  const nameResult = nameSchema.safeParse(participantName);
+  if (!nameResult.success) throw new Error(nameResult.error.issues[0].message);
+
   const joinCode = generateCode();
 
-  const { data: participant, error: participantError } = await supabase
-    .from('participants')
-    .insert({
-      event_id: eventId,
-      user_id: userId || null,
-      name: participantName,
-      join_code: joinCode,
-    })
-    .select()
-    .single();
+  // Use secure RPC function for atomic participant + wallet creation
+  const { data, error } = await supabase.rpc('join_event_secure', {
+    p_event_id: eventId,
+    p_participant_name: nameResult.data,
+    p_join_code: joinCode,
+  });
 
-  if (participantError) throw participantError;
+  if (error) throw error;
 
-  // Get event starting balance
-  const { data: event } = await supabase
-    .from('events')
-    .select('starting_balance')
-    .eq('id', eventId)
-    .single();
+  const response = data as unknown as JoinEventResponse;
 
-  // Create wallet with starting balance
-  const { data: wallet, error: walletError } = await supabase
-    .from('wallets')
-    .insert({
-      participant_id: participant.id,
-      event_id: eventId,
-      balance: event?.starting_balance || 0,
-    })
-    .select()
-    .single();
-
-  if (walletError) throw walletError;
-
-  return { participant, wallet, joinCode };
+  return { 
+    participant: { id: response.participant_id, name: nameResult.data }, 
+    wallet: { id: response.wallet_id, balance: response.balance }, 
+    joinCode: response.join_code 
+  };
 };
 
 export const getEventParticipants = async (eventId: string) => {
@@ -234,113 +259,60 @@ export const getVendorByCode = async (vendorCode: string) => {
   return data;
 };
 
-// Transactions
+// Transactions - Uses secure RPC function
 export const processPayment = async (
   walletId: string,
   vendorId: string,
   amount: number,
   description?: string
 ) => {
-  // Get wallet and event info
-  const { data: wallet } = await supabase
-    .from('wallets')
-    .select('balance, event_id')
-    .eq('id', walletId)
-    .single();
+  // Validate amount
+  const amountResult = amountSchema.safeParse(amount);
+  if (!amountResult.success) throw new Error(amountResult.error.issues[0].message);
 
-  if (!wallet) throw new Error('Wallet not found');
-  if (Number(wallet.balance) < amount) throw new Error('Insufficient balance');
+  // Validate description length if provided
+  if (description && description.length > 200) {
+    throw new Error('Description must be 200 characters or less');
+  }
 
-  // Deduct from wallet
-  const { error: walletError } = await supabase
-    .from('wallets')
-    .update({ balance: Number(wallet.balance) - amount })
-    .eq('id', walletId);
+  // Use secure RPC function
+  const { data: txId, error } = await supabase.rpc('process_payment_secure', {
+    p_wallet_id: walletId,
+    p_vendor_id: vendorId,
+    p_amount: amountResult.data,
+    p_description: description?.substring(0, 200) || null,
+  });
 
-  if (walletError) throw walletError;
-
-  // Add to vendor earnings
-  const { data: vendor } = await supabase
-    .from('vendors')
-    .select('total_earnings')
-    .eq('id', vendorId)
-    .single();
-
-  await supabase
-    .from('vendors')
-    .update({ total_earnings: Number(vendor?.total_earnings || 0) + amount })
-    .eq('id', vendorId);
-
-  // Record transaction
-  const { data: transaction, error: txError } = await supabase
-    .from('transactions')
-    .insert({
-      event_id: wallet.event_id,
-      from_wallet_id: walletId,
-      vendor_id: vendorId,
-      amount,
-      type: 'payment',
-      description,
-    })
-    .select()
-    .single();
-
-  if (txError) throw txError;
-  return transaction;
+  if (error) throw error;
+  return { id: txId };
 };
 
+// Transfer funds - Uses secure RPC function
 export const transferFunds = async (
   fromWalletId: string,
   toWalletId: string,
   amount: number,
   description?: string
 ) => {
-  // Get from wallet
-  const { data: fromWallet } = await supabase
-    .from('wallets')
-    .select('balance, event_id')
-    .eq('id', fromWalletId)
-    .single();
+  // Validate amount
+  const amountResult = amountSchema.safeParse(amount);
+  if (!amountResult.success) throw new Error(amountResult.error.issues[0].message);
 
-  if (!fromWallet) throw new Error('From wallet not found');
-  if (Number(fromWallet.balance) < amount) throw new Error('Insufficient balance');
+  // Validate description length if provided
+  if (description && description.length > 200) {
+    throw new Error('Description must be 200 characters or less');
+  }
 
-  // Get to wallet
-  const { data: toWallet } = await supabase
-    .from('wallets')
-    .select('balance')
-    .eq('id', toWalletId)
-    .single();
-
-  if (!toWallet) throw new Error('To wallet not found');
-
-  // Update balances
-  await supabase
-    .from('wallets')
-    .update({ balance: Number(fromWallet.balance) - amount })
-    .eq('id', fromWalletId);
-
-  await supabase
-    .from('wallets')
-    .update({ balance: Number(toWallet.balance) + amount })
-    .eq('id', toWalletId);
-
-  // Record transaction
-  const { data: transaction, error } = await supabase
-    .from('transactions')
-    .insert({
-      event_id: fromWallet.event_id,
-      from_wallet_id: fromWalletId,
-      to_wallet_id: toWalletId,
-      amount,
-      type: 'transfer',
-      description,
-    })
-    .select()
-    .single();
+  // Use secure RPC function
+  const { data: txId, error } = await supabase.rpc('transfer_funds_secure', {
+    p_from_wallet_id: fromWalletId,
+    p_to_wallet_id: toWalletId,
+    p_amount: amountResult.data,
+    p_description: description?.substring(0, 200) || null,
+  });
 
   if (error) throw error;
-  return transaction;
+  return { id: txId };
 };
 
 export const getWalletTransactions = async (walletId: string) => {
@@ -394,46 +366,32 @@ export const getParticipantBadges = async (participantId: string) => {
   return data;
 };
 
-// Send reward to participant
+// Send reward to participant - Uses secure RPC function (organizers only)
 export const sendReward = async (
   eventId: string,
   participantId: string,
   amount: number,
   description?: string
 ) => {
-  // Get wallet for participant
-  const { data: wallet, error: walletError } = await supabase
-    .from('wallets')
-    .select('id, balance')
-    .eq('participant_id', participantId)
-    .eq('event_id', eventId)
-    .single();
+  // Validate amount
+  const amountResult = amountSchema.safeParse(amount);
+  if (!amountResult.success) throw new Error(amountResult.error.issues[0].message);
 
-  if (walletError || !wallet) throw new Error('Wallet not found');
+  // Validate description length if provided
+  if (description && description.length > 200) {
+    throw new Error('Description must be 200 characters or less');
+  }
 
-  // Update wallet balance
-  const { error: updateError } = await supabase
-    .from('wallets')
-    .update({ balance: Number(wallet.balance) + amount })
-    .eq('id', wallet.id);
+  // Use secure RPC function
+  const { data: txId, error } = await supabase.rpc('send_reward_secure', {
+    p_event_id: eventId,
+    p_participant_id: participantId,
+    p_amount: amountResult.data,
+    p_description: description?.substring(0, 200) || 'Reward from organizer',
+  });
 
-  if (updateError) throw updateError;
-
-  // Record transaction
-  const { data: transaction, error: txError } = await supabase
-    .from('transactions')
-    .insert({
-      event_id: eventId,
-      to_wallet_id: wallet.id,
-      amount,
-      type: 'reward',
-      description: description || 'Reward from organizer',
-    })
-    .select()
-    .single();
-
-  if (txError) throw txError;
-  return transaction;
+  if (error) throw error;
+  return { id: txId };
 };
 
 // Update event settings

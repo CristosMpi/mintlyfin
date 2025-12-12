@@ -8,6 +8,13 @@ import { getEvent, joinEvent } from '@/lib/eventService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Sparkles, User } from 'lucide-react';
+import { z } from 'zod';
+
+// Input validation schema
+const nameSchema = z.string()
+  .trim()
+  .min(1, 'Name is required')
+  .max(50, 'Name must be 50 characters or less');
 
 const JoinEvent = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -17,6 +24,7 @@ const JoinEvent = () => {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -33,8 +41,20 @@ const JoinEvent = () => {
     loadEvent();
   }, [eventId]);
 
+  const validateName = (value: string) => {
+    const result = nameSchema.safeParse(value);
+    if (!result.success) {
+      setNameError(result.error.issues[0].message);
+      return false;
+    }
+    setNameError(null);
+    return true;
+  };
+
   const handleJoin = async () => {
-    if (!eventId || !name.trim()) return;
+    if (!eventId) return;
+    if (!validateName(name)) return;
+    
     setJoining(true);
     try {
       const { joinCode } = await joinEvent(eventId, name.trim(), user?.id);
@@ -117,10 +137,18 @@ const JoinEvent = () => {
               <Input
                 placeholder="Enter your name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="pl-12"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (nameError) validateName(e.target.value);
+                }}
+                onBlur={() => name && validateName(name)}
+                className={`pl-12 ${nameError ? 'border-destructive' : ''}`}
                 onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                maxLength={50}
               />
+              {nameError && (
+                <p className="text-sm text-destructive mt-1 text-left">{nameError}</p>
+              )}
             </div>
 
             <Button
