@@ -368,6 +368,14 @@ const ParticipantWallet = () => {
               {event.currency_name}
             </p>
           </motion.div>
+
+          {/* Join Code Display */}
+          <div className="mt-4 p-3 rounded-xl bg-muted/50 border border-border/50">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Your Join Code</span>
+              <span className="font-mono font-semibold text-sm tracking-wider">{joinCode}</span>
+            </div>
+          </div>
         </div>
       </div>
 
