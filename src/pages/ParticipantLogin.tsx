@@ -74,15 +74,15 @@ const ParticipantLogin = () => {
               <Label htmlFor="joinCode">Join Code</Label>
               <Input
                 id="joinCode"
-                placeholder="e.g. ABC123"
-                className="mt-2 text-center text-2xl tracking-widest uppercase"
+                placeholder="e.g. A1B2C3D4E5F6G7H8"
+                className="mt-2 text-center text-lg tracking-wider uppercase font-mono"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                maxLength={6}
+                maxLength={16}
                 autoComplete="off"
               />
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                You received this code when you joined an event
+                Enter your 16-character code you received when joining an event
               </p>
             </div>
 
