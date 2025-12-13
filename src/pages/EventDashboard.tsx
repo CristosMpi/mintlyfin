@@ -23,8 +23,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link, useParams } from 'react-router-dom';
-import { getEvent, getEventStats, getEventVendors, createVendor, getEventParticipants, sendReward, updateEvent, getEventTransactions, updateVendor, deleteVendor } from '@/lib/eventService';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { getEvent, getEventStats, getEventVendors, createVendor, getEventParticipants, sendReward, updateEvent, getEventTransactions, updateVendor, deleteVendor, deleteEvent } from '@/lib/eventService';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import {
@@ -52,6 +52,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const EventDashboard = () => {
   const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<any>(null);
   const [stats, setStats] = useState({ totalParticipants: 0, totalCirculating: 0, totalVendorEarnings: 0 });
   const [vendors, setVendors] = useState<any[]>([]);
@@ -65,6 +66,7 @@ const EventDashboard = () => {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showVendorSettingsDialog, setShowVendorSettingsDialog] = useState(false);
   const [showDeleteVendorDialog, setShowDeleteVendorDialog] = useState(false);
+  const [showDeleteEventDialog, setShowDeleteEventDialog] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [rewardAmount, setRewardAmount] = useState('');
@@ -283,6 +285,18 @@ const EventDashboard = () => {
       toast.error('Failed to save settings');
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!eventId) return;
+    
+    try {
+      await deleteEvent(eventId);
+      toast.success('Event deleted!');
+      navigate('/my-events');
+    } catch (error) {
+      toast.error('Failed to delete event');
     }
   };
 
@@ -764,6 +778,26 @@ const EventDashboard = () => {
                 onCheckedChange={(checked) => setSettingsForm({ ...settingsForm, is_active: checked })}
               />
             </div>
+
+            {/* Danger Zone */}
+            <div className="pt-4 border-t border-destructive/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-destructive">Delete Event</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Permanently delete this event and all data
+                  </p>
+                </div>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => setShowDeleteEventDialog(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
+              </div>
+            </div>
           </div>
           
           <div className="flex justify-end gap-2">
@@ -780,6 +814,27 @@ const EventDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Event Confirmation Dialog */}
+      <AlertDialog open={showDeleteEventDialog} onOpenChange={setShowDeleteEventDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{event?.name}"? This will permanently delete all participants, wallets, transactions, and vendors. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteEvent}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Event
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Vendor Settings Dialog */}
       <Dialog open={showVendorSettingsDialog} onOpenChange={setShowVendorSettingsDialog}>

@@ -417,6 +417,16 @@ export const updateEvent = async (
   return data;
 };
 
+// Delete event
+export const deleteEvent = async (eventId: string) => {
+  const { error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', eventId);
+
+  if (error) throw error;
+};
+
 // Get event transactions for export
 export const getEventTransactions = async (eventId: string) => {
   const { data, error } = await supabase
