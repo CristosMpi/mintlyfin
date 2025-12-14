@@ -146,7 +146,7 @@ const Landing = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <motion.img src={mintlyLogo} alt="Mintly" className="h-8 w-auto" whileHover={{
+            <motion.img src={mintlyLogo} alt="Mintly" className="h-10 w-auto" whileHover={{
             scale: 1.05
           }} transition={{
             type: "spring",
