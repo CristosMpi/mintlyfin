@@ -145,13 +145,14 @@ const Landing = () => {
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <motion.img src={mintlyLogo} alt="Mintly" className="h-10 w-auto" whileHover={{
+          <Link to="/" className="flex items-center gap-3">
+            <motion.img src={mintlyLogo} alt="Mintly" className="h-12 w-auto" whileHover={{
             scale: 1.05
           }} transition={{
             type: "spring",
             stiffness: 400
           }} />
+            <span className="text-xl font-bold tracking-tight gradient-text">Mintly</span>
           </Link>
           <div className="flex items-center gap-3">
             <ThemeToggle />
